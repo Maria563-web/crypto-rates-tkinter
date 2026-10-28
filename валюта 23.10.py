@@ -2,96 +2,104 @@ from tkinter import *
 from tkinter import messagebox as mb
 from tkinter import ttk
 import requests
-import json
-import pprint
-
-from bottle import response
-
-
-def update_currency_label(event):
-    code = target_combobox.get()
-    # code = combobox.get()
-    name = currencies[code]
-    target_label.config(text=name)
-
-
-def update_base_label(event):
-    code = base_combobox.get()
-    name = currencies[code]
-    base_label.config(text=name)
-
-
-def exchange():
-    target_code = target_combobox.get().strip()
-    base_code = base_combobox.get().strip()
-    # code = entry.get().upper().strip()
-    # code = combobox.get()
-    if target_code and base_code:
-        try:
-            response = requests.get(f'https://open.er-api.com/v6/latest/{base_code}')
-            response.raise_for_status()
-            data = response.json()
-            if target_code in data['rates']:
-                exchange_rate = data['rates'][target_code]
-                base = currencies[base_code]
-                target = currencies[target_code]
-                # currency_name = currencies[code]
-                mb.showinfo('Курс обмена',
-                            f'Курс: {exchange_rate:.1f} {target} за 1 {base}')
-            else:
-                mb.showerror('Ошибка',
-                            f'Валюта {target_code} не найдена')
-        except Exception as er:
-            mb.showerror('Ошибка', er)
-
-    else:
-        mb.showwarning('Внимание', 'Введите код валюты')
 
 
 currencies = {
     'EUR': 'Евро',
-    'USD': 'Доллар США',
     'JPY': 'Японская йена',
     'GBP': 'Фунт стерлингов',
     'AUD': 'Австралийский доллар',
-    'CAD': 'Канадский доллар',
-    'CHF': 'Швейцарский франк',
-    'CNY': 'Китайский юань',
     'RUB': 'Российский рубль',
     'KZT': 'Казахстанский тенге',
-    'UZS': 'Узбекский сум'
-
+    'UZS': 'Узбекский сум',
+    'USD': 'Американский доллар'
 }
 
+
+def update_currency_label(event, combobox_widget, label_widget):
+    """Обновляет текстовую метку при выборе валюты в комбобоксе"""
+    code = combobox_widget.get()
+    name = currencies.get(code, 'Неизвестная валюта')
+    label_widget.config(text=name)
+
+
+def exchange():
+    """Запрашивает курсы для двух базовых валют относительно целевой"""
+    base1 = combo_base1.get()
+    base2 = combo_base2.get()
+    target = combo_target.get()
+
+    if not (base1 and base2 and target):
+        mb.showwarning('Внимание', 'Выберите все валюты')
+        return
+
+    try:
+
+        response1 = requests.get(f'https://open.er-api.com/v6/latest/{base1}')
+        response1.raise_for_status()
+        data1 = response1.json()
+
+
+        response2 = requests.get(f'https://open.er-api.com/v6/latest/{base2}')
+        response2.raise_for_status()
+        data2 = response2.json()
+
+
+        if target in data1['rates'] and target in data2['rates']:
+            rate1 = data1['rates'][target]
+            rate2 = data2['rates'][target]
+
+            msg = (f"Курс обмена к {target}:\n"
+                   f"1 {base1} = {rate1:.2f} {target}\n"
+                   f"1 {base2} = {rate2:.2f} {target}")
+
+            mb.showinfo('Курсы обмена', msg)
+        else:
+            mb.showerror('Ошибка', 'Валюта не найдена в ответе API')
+
+    except Exception as e:
+        mb.showerror('Ошибка', f'Не удалось получить данные: {e}')
+
+
+
 root = Tk()
-root.title('Курс обмена валют USD')
-root.geometry('360x180')
+root.title('Курсы обмена валют')
+root.geometry('350x450')
 
-Label(root, text='Базовая валюта').pack()
-base_combobox = ttk.Combobox(root, values=list(currencies.keys()))
-base_combobox.pack(pady=3, padx=10)
-base_combobox.bind('<<ComboboxSelected>>', update_base_label)
-base_label = ttk.Label()
-base_label.pack()
 
-Label(root, text='Целевая валюта' ).pack(padx=10)
-# popular_currencies = ['EUR', 'JPY', 'GBP', 'AUD', 'CAD', 'CHF',
-#                       'CNY', 'RUB', 'KZT', 'UZS']
-target_combobox = ttk.Combobox(root, values=list(currencies.keys()))
-target_combobox.pack(pady=3, padx=10)
-target_combobox.bind('<<ComboboxSelected>>', update_currency_label)
+popular_currencies = list(currencies.keys())
 
-target_label = ttk.Label()
-target_label.pack()
-# entry = Entry(root)
-# entry.pack()
+# 1. Первая базовая валюта
+Label(root, text='Базовая валюта', font=('Arial', 10, 'bold')).pack(pady=(10, 5))
+combo_base1 = ttk.Combobox(root, values=popular_currencies, state='readonly')
+combo_base1.set('EUR')  # Значение по умолчанию
+combo_base1.pack(pady=5)
+label_base1 = ttk.Label(root, text='Евро')
+label_base1.pack()
+combo_base1.bind('<<ComboboxSelected>>',
+                 lambda e: update_currency_label(e, combo_base1, label_base1))
 
-Button(text='Получить курс обмена к доллару',
-       command=exchange).pack(pady=10, padx=10)
+# 2. Вторая базовая валюта
+Label(root, text='Вторая базовая валюта', font=('Arial', 10, 'bold')).pack(pady=(15, 5))
+combo_base2 = ttk.Combobox(root, values=popular_currencies, state='readonly')
+combo_base2.set('USD')  # Значение по умолчанию
+combo_base2.pack(pady=5)
+label_base2 = ttk.Label(root, text='Американский доллар')
+label_base2.pack()
+combo_base2.bind('<<ComboboxSelected>>',
+                 lambda e: update_currency_label(e, combo_base2, label_base2))
 
+# 3. Целевая валюта
+Label(root, text='Целевая валюта', font=('Arial', 10, 'bold')).pack(pady=(15, 5))
+combo_target = ttk.Combobox(root, values=popular_currencies, state='readonly')
+combo_target.set('RUB')  # Значение по умолчанию
+combo_target.pack(pady=5)
+label_target = ttk.Label(root, text='Российский рубль')
+label_target.pack()
+combo_target.bind('<<ComboboxSelected>>',
+                  lambda e: update_currency_label(e, combo_target, label_target))
+
+
+Button(root, text='Получить курс обмена', command=exchange).pack(pady=30)
 
 root.mainloop()
-# p = pprint.PrettyPrinter(indent=4)
-# result = requests.get('https://open.er-api.com/v6/latest/USD')
-# data = json.loads(result.text)
-# p.pprint(data)
