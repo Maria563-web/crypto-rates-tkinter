@@ -3,6 +3,7 @@ from tkinter import messagebox as mb
 from tkinter import ttk
 import requests
 
+#код готов к сдаче
 
 currencies = {
     'EUR': 'Евро',
